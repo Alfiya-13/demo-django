@@ -4,7 +4,7 @@ from .models import Todo
 from .serializers import TodoSerializer,UserSerializer
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny,IsAuthenticated
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -13,19 +13,25 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 # Create your views here.
 @api_view(["GET","POST"])
+@permission_classes([IsAuthenticated])
 def todo_list(request):
     if request.method=="GET":
-        todos=Todo.objects.all()
+        # todos=Todo.objects.all()
+        todos=Todo.objects.filter(user=request.user)
         serializer=TodoSerializer(todos,many=True)
         return Response(serializer.data)
     elif request.method=="POST":
-        serializer=TodoSerializer(data=request.data)
+        data=request.data.copy()
+        data["user"]=request.user.id
+        # serializer=TodoSerializer(data=request.data)
+        serializer=TodoSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data,status=status.HTTP_201_CREATED)
         return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
     
 @api_view(["PUT","DELETE"])
+@permission_classes([IsAuthenticated])
 def todo_update_delete(request,pk):
     todo=Todo.objects.filter(pk=pk).first()
     if not todo:
@@ -47,7 +53,7 @@ def todo_update_delete(request,pk):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def register(request):
-    serializer=UserSerializer
+    serializer=UserSerializer(data=request.data)
     if serializer.is_valid():
         serializer.save()
         return Response(serializer.data,status=status.HTTP_201_CREATED)
